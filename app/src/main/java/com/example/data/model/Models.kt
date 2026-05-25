@@ -83,3 +83,9 @@ data class GlobalWellnessSettings(
     val lastRealityCheckTimestamp: Long = 0L,
     val offlineFocusSuggestionsLevel: String = "Standard"
 )
+
+data class AppInfo(
+    val packageName: String,
+    val appName: String,
+    val category: String
+)

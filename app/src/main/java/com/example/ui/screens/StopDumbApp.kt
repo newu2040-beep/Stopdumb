@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -48,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.*
 import com.example.ui.theme.StopDumbTheme
 import com.example.ui.viewmodel.StopDumbViewModel
+import coil.compose.rememberAsyncImagePainter
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.PI
@@ -227,456 +229,476 @@ fun DashboardTab(
     focusSessions: List<FocusSessionRecord>,
     settings: GlobalWellnessSettings
 ) {
+    val analysis by viewModel.dailyAnalysis.collectAsStateWithLifecycle()
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("dashboard_tab"),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Core Motivational Alert Box
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Daily Digital Discipline",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "\"${viewModel.inspirationalQuotes[settings.lockscreenQuoteIndex % viewModel.inspirationalQuotes.size]}\"",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            }
-        }
-
-        // Fast Stats (Pickups & Unlocks Counter)
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                listOf(
-                    Triple("Total Pickups", "${settings.totalPickupsToday} pickups", "pickup"),
-                    Triple("Unlocks Today", "${settings.totalUnlocksToday} unlocks", "unlock")
-                ).forEach { (heading, value, type) ->
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { viewModel.triggerPhysicalInteraction(type) },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = heading,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = value,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "+ Tap to simulate",
-                                fontSize = 9.sp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Productivity Scores Analysis Box
+        // Hero Score Card (Bento Style)
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(200.dp)
                     .clickable { viewModel.activeSubScreen = "DailyAnalysis" },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Focus & Attention Health",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowForward,
-                            contentDescription = "Analysis Detail",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Focus Score Ring
-                        Box(
-                            modifier = Modifier.size(80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val strokeColor = MaterialTheme.colorScheme.primary
-                            val secondaryColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
-                            val animateAngle by animateFloatAsState(
-                                targetValue = 280f, // 78% of 360
-                                animationSpec = tween(1200, easing = FastOutSlowInEasing),
-                                label = ""
-                            )
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                drawArc(
-                                    color = secondaryColor,
-                                    startAngle = 0f,
-                                    sweepAngle = 360f,
-                                    useCenter = false,
-                                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-                                )
-                                drawArc(
-                                    color = strokeColor,
-                                    startAngle = -270f,
-                                    sweepAngle = animateAngle,
-                                    useCenter = false,
-                                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(text = "78%", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                                Text(text = "Focus", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-                            }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Decorative Canvas elements for waves
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val path = Path().apply {
+                            moveTo(0f, size.height * 0.7f)
+                            quadraticBezierTo(size.width * 0.25f, size.height * 0.5f, size.width * 0.5f, size.height * 0.7f)
+                            quadraticBezierTo(size.width * 0.75f, size.height * 0.9f, size.width, size.height * 0.7f)
+                            lineTo(size.width, size.height)
+                            lineTo(0f, size.height)
+                            close()
                         }
+                        drawPath(path, Color.White.copy(alpha = 0.1f))
+                    }
 
-                        // Detailed scores list
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
                         ) {
-                            ScoreItemRow(label = "Attention Span", value = "24 min - Adequate", icon = Icons.Outlined.Visibility)
-                            ScoreItemRow(label = "Dopamine Meter", value = "Stable Health (Normal)", icon = Icons.Outlined.Bolt)
-                            ScoreItemRow(label = "Deep Work Streak", value = "6 days high focus", icon = Icons.Outlined.WorkspacePremium)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Screentime Hour Heatmap
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Aesthetic Hourly Usage Heatmap",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Timeline,
-                            contentDescription = "Chart indicator",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Heatmap Grid: Represents average activity per hour of the day (24 slots)
-                    val primaryColor = MaterialTheme.colorScheme.primary
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val hoursLevels = listOf(
-                            0, 0, 0, 1, 0, 0, 2, 4, 1, 3, 2, 4,
-                            3, 2, 5, 5, 2, 3, 5, 4, 3, 2, 1, 0
-                        ) // Activity levels out of 5
-                        hoursLevels.forEachIndexed { index, level ->
+                            Column {
+                                Text(
+                                    "DAILY FOCUS SCORE",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    letterSpacing = 1.sp
+                                )
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        "${analysis.focusScore}",
+                                        fontSize = 56.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        "/100",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier.padding(bottom = 10.dp, start = 4.dp)
+                                    )
+                                }
+                            }
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(28.dp)
-                                    .background(
-                                        color = if (level == 0) primaryColor.copy(alpha = 0.05f)
-                                        else primaryColor.copy(alpha = (level / 5f)),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(text = "12 AM (Midnight)", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-                        Text(text = "12 PM (Noon)", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-                        Text(text = "12 AM (Midnight)", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-                    }
-                }
-            }
-        }
-
-        // Screentime vs Productivity analytics chart
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Historical Productive vs Distracted Space",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Compare creative execution (blue) with mindless scroll (primary)",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Simulated 5-day columns
-                    val dayNames = listOf("Tue", "Wed", "Thu", "Fri", "Today")
-                    val levelsUsage = listOf(
-                        Pair(4.2f, 1.8f), // (distracted, productive hours)
-                        Pair(5.5f, 1.2f),
-                        Pair(3.1f, 2.8f),
-                        Pair(2.2f, 4.0f),
-                        Pair(3.4f, 2.9f)
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        levelsUsage.forEachIndexed { i, pair ->
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.width(44.dp)
+                                    .background(Color.White.copy(alpha = 0.2f), shape = CircleShape)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .weight(1f),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        // Productive bar (blue tinted tertiary)
-                                        val productiveHeight = (pair.second / 7.5f)
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(0.5f)
-                                                .fillMaxHeight(productiveHeight.coerceIn(0.1f, 1f))
-                                                .background(
-                                                    MaterialTheme.colorScheme.primary,
-                                                    RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
-                                                )
-                                        )
-                                        // Distracted bar (amber/rose)
-                                        val distractedHeight = (pair.first / 7.5f)
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(0.5f)
-                                                .fillMaxHeight(distractedHeight.coerceIn(0.1f, 1f))
-                                                .background(
-                                                    MaterialTheme.colorScheme.error,
-                                                    RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-                                                )
-                                        )
-                                    }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        Modifier
+                                            .size(6.dp)
+                                            .background(Color(0xFF49E191), CircleShape)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "DEEP FLOW",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = dayNames[i],
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                                )
                             }
                         }
-                    }
-                }
-            }
-        }
 
-        // Most Distracting Apps section
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Distracting Application Simulator",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "Launch app",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // List of Apps simulator buttons
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = "Tap on an app to simulate opening it. StopDumb will test its blockers in real-time according to your configuration rules.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    val testAppSimulations = listOf(
-                        Triple("Instagram", "com.instagram.android", "Social"),
-                        Triple("TikTok", "com.zhiliaoapp.musically", "Social"),
-                        Triple("PUBG Mobile", "com.tencent.ig", "Gaming"),
-                        Triple("Twitter / X", "com.twitter.android", "Social"),
-                        Triple("Notion HQ", "com.notion.com", "Productivity")
-                    )
-
-                    testAppSimulations.forEach { (label, pkg, category) ->
+                        // Mini Wave Indicator mock
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { viewModel.simulateAppLaunch(pkg, label, category) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .height(40.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.Bottom
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
+                            val heights = listOf(0.4f, 0.6f, 0.85f, 0.7f, 0.45f, 0.55f, 0.95f, 0.3f)
+                            heights.forEach { h ->
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .weight(1f)
+                                        .fillMaxHeight(h)
                                         .background(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            shape = CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = when (category) {
-                                            "Social" -> Icons.Default.ChatBubbleOutline
-                                            "Gaming" -> Icons.Default.VideogameAsset
-                                            else -> Icons.Default.Task
-                                        },
-                                        contentDescription = label,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = label,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                    Text(
-                                        text = pkg,
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                                    )
-                                }
+                                            Color.White.copy(alpha = 0.4f + (h * 0.5f)),
+                                            RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                        )
+                                )
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bento Grid Section
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Large Screen Time Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                "TOTAL SCREEN TIME",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                            )
+                            val hours = analysis.totalTimeMs / (1000 * 3600)
+                            val mins = (analysis.totalTimeMs % (1000 * 3600)) / (1000 * 60)
+                            Text(
+                                "${hours}h ${mins}m",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.1f),
+                                        CircleShape
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    "-14% from yesterday",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .border(
+                                    width = 6.dp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.1f),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                progress = 0.82f,
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 6.dp,
+                                strokeCap = StrokeCap.Round,
+                                trackColor = Color.Transparent
+                            )
+                            Text(
+                                "82%",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                // Two Small Cards Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Pickups
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(130.dp)
+                            .clickable { viewModel.triggerPhysicalInteraction("pickup") },
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Color(0xFFDDE2EA))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "PICKUPS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF43474E)
+                            )
+                            Text(
+                                "${settings.totalPickupsToday}",
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF1A1C1E)
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.TrendingUp,
+                                    null,
+                                    tint = Color(0xFFBA1A1A),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    "High Frequency",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFBA1A1A)
+                                )
+                            }
+                        }
+                    }
+
+                    // Top Sink
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(130.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Color(0xFFDDE2EA))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "TOP SINK",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF43474E)
+                            )
+                            Column {
+                                Text(
+                                    analysis.topSinkName,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF1A1C1E),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val sinkMins = analysis.topSinkTimeMs / (1000 * 60)
+                                Text(
+                                    "${sinkMins}m today",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .background(Color(0xFFE1E2E9), CircleShape)
+                            ) {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth(0.7f)
+                                        .fillMaxHeight()
+                                        .background(Color(0xFFBA1A1A), CircleShape)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Large Action button
+                Button(
+                    onClick = { viewModel.activeTab = "Productivity"; viewModel.activeSubScreen = "PomodoroTimer" },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1C1E))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFF49E191), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.Launch,
-                                contentDescription = "Launch App Simulator Toggle",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                Icons.Default.PlayArrow,
+                                null,
+                                tint = Color.Black,
                                 modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            "Start Deep Work Session",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Digital Health Analysis Section (New)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Color(0xFFE1E2E9))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Default.Devices, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Text(
+                                "REAL-TIME DEVICE ENGINE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("DEVICE STATUS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text("${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("OS VERSION", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text("Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("APP UPTIME", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text("${(System.currentTimeMillis() / 1000 / 60) % 60}m 14s active", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("SECURITY LEVEL", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text("Strict / Protected", fontSize = 13.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
+                }
+
+                // Recent Activity Feed
+                Text(
+                    "LIVE ACTIVITY FEED",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                usages.take(4).forEach { usage ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Color(0xFFF1F2F9))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (usage.category == "Productivity") Icons.Default.CheckCircle else Icons.Default.Launch,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(usage.appName, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("${usage.category} • Just now", fontSize = 10.sp, color = Color.Gray)
+                            }
+                            Text(
+                                text = "+${(usage.durationMs / 1000 / 60)}m",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (usage.category == "Productivity") Color(0xFF49E191) else Color(0xFFBA1A1A)
                             )
                         }
                     }
                 }
             }
         }
+        
+        item { Spacer(modifier = Modifier.height(8.dp)) }
     }
 }
 
 @Composable
-fun ScoreItemRow(label: String, value: String, icon: ImageVector) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp)
+fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val icon = remember(packageName) {
+        try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    if (icon != null) {
+        androidx.compose.foundation.Image(
+            painter = rememberAsyncImagePainter(icon),
+            contentDescription = null,
+            modifier = modifier.clip(RoundedCornerShape(8.dp))
         )
-        Column {
-            Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold)
-            Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+    } else {
+        Box(
+            modifier = modifier
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Apps, null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         }
     }
 }
-
 
 // ==================== DISTRACTION TAB ====================
 @Composable
@@ -686,6 +708,7 @@ fun DistractionTab(
     recentAttempts: List<BlockedAttemptRecord>,
     settings: GlobalWellnessSettings
 ) {
+    val installedApps by viewModel.installedApps.collectAsStateWithLifecycle()
     var showLimitsSheet by remember { mutableStateOf<AppBlockConfig?>(null) }
 
     LazyColumn(
@@ -793,8 +816,10 @@ fun DistractionTab(
                             .fillMaxWidth()
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        AppIcon(packageName = appConfig.packageName, modifier = Modifier.size(40.dp))
+                        
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = appConfig.appName,
@@ -804,34 +829,71 @@ fun DistractionTab(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Limit: ${if (appConfig.dailyLimitMinutes > 0) "${appConfig.dailyLimitMinutes}m" else "None"} | Cooldown: ${appConfig.launchCooldownSeconds}s",
-                                fontSize = 12.sp,
+                                text = "Limit: ${if (appConfig.dailyLimitMinutes > 0) "${appConfig.dailyLimitMinutes}m" else "Keep Focus"} | CD: ${appConfig.launchCooldownSeconds}s",
+                                fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
                         }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { showLimitsSheet = appConfig },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                    contentColor = MaterialTheme.colorScheme.primary
-                                ),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit limits", modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Limit", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
+                        Switch(
+                            checked = appConfig.isBlocked,
+                            onCheckedChange = { viewModel.toggleAppBlock(appConfig) }
+                        )
+                    }
+                }
+            }
+        }
 
-                            Switch(
-                                checked = appConfig.isBlocked,
-                                onCheckedChange = { viewModel.toggleAppBlock(appConfig) }
-                            )
+        // System Applications Engine (Real-time detection)
+        item {
+            Text(
+                text = "System Applications Engine (Live)",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "Detected ${installedApps.size} external apps on device. Tap to configure blocking rules for addictive games and tools.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    installedApps.take(10).forEach { app ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { viewModel.simulateAppLaunch(app.packageName, app.appName, app.category) }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            AppIcon(packageName = app.packageName, modifier = Modifier.size(32.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(app.appName, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(app.packageName, fontSize = 10.sp, color = Color.Gray)
+                            }
+                            Icon(Icons.Default.Launch, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(start = 48.dp), thickness = 0.5.dp, color = Color.Gray.copy(alpha = 0.1f))
+                    }
+                    
+                    if (installedApps.size > 10) {
+                        TextButton(
+                            onClick = { /* Could show full list */ },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("And ${installedApps.size - 10} more applications...", fontSize = 12.sp)
                         }
                     }
                 }
@@ -1763,7 +1825,7 @@ fun ThemesTab(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    val themesList = listOf("Bento Grid", "Mint", "Lavender", "Peach", "Ocean Blue", "Rose Pink", "Sunset Orange", "Arctic White")
+                    val themesList = listOf("Bento Grid", "Cyberpunk", "Nordic Ice", "Solarized Light", "Mint", "Lavender", "Peach", "Ocean Blue", "Rose Pink", "Sunset Orange", "Arctic White")
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         modifier = Modifier

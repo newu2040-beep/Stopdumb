@@ -43,3 +43,18 @@ val BentoText = Color(0xFF001D34)
 val BentoSubtitle = Color(0xFF43474E)
 val BentoSuccess = Color(0xFF49E191)
 val BentoError = Color(0xFFBA1A1A)
+
+// Cyberpunk theme
+val CyberBg = Color(0xFF0D0221)
+val CyberPrimary = Color(0xFFFF0055)
+val CyberSecondary = Color(0xFF00F5FF)
+
+// Nordic theme
+val NordicBg = Color(0xFF2E3440)
+val NordicPrimary = Color(0xFF88C0D0)
+val NordicSecondary = Color(0xFF81A1C1)
+
+// Solarized theme
+val SolarBg = Color(0xFFFDF6E3)
+val SolarPrimary = Color(0xFFB58900)
+val SolarSecondary = Color(0xFF2AA198)

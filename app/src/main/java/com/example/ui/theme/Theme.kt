@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 
 @Composable
 fun StopDumbTheme(
-    selectedTheme: String = "Mint",
+    selectedTheme: String = "Bento Grid",
     isDark: Boolean = isSystemInDarkTheme(),
     isAmoled: Boolean = false,
     content: @Composable () -> Unit
@@ -24,29 +24,52 @@ fun StopDumbTheme(
         "Sunset Orange" -> Pair(SunsetOrangePrimary, SunsetOrangePrimaryDark)
         "Arctic White" -> Pair(ArcticPrimary, ArcticPrimaryDark)
         "Bento Grid" -> Pair(BentoPrimary, BentoPrimary) // High contrast blue
-        else -> Pair(MintPrimary, MintPrimaryDark) // default "Mint"
+        "Cyberpunk" -> Pair(CyberPrimary, CyberPrimary)
+        "Nordic Ice" -> Pair(NordicPrimary, NordicPrimary)
+        "Solarized Light" -> Pair(SolarPrimary, SolarPrimary)
+        else -> Pair(BentoPrimary, BentoPrimary) // default to Bento
     }
 
-    val finalPrimary = if (isDark) primaryDarkColor else primaryColor
+    val finalPrimary = if (isDark && selectedTheme !in listOf("Bento Grid", "Cyberpunk", "Nordic Ice", "Solarized Light")) primaryDarkColor else primaryColor
     
     // Choose backgrounds depending on dark mode + Amoled black settings
     val background = when {
+        selectedTheme == "Bento Grid" -> BentoBg
+        selectedTheme == "Cyberpunk" -> CyberBg
+        selectedTheme == "Nordic Ice" -> NordicBg
+        selectedTheme == "Solarized Light" -> SolarBg
         isDark && isAmoled -> AmoledBgSystem
         isDark -> DarkBgSystem
-        selectedTheme == "Bento Grid" -> BentoBg
         else -> LightBgSystem
     }
 
     val surface = when {
+        selectedTheme == "Bento Grid" -> Color.White
+        selectedTheme == "Cyberpunk" -> Color(0xFF1B0330)
+        selectedTheme == "Nordic Ice" -> Color(0xFF3B4252)
+        selectedTheme == "Solarized Light" -> Color(0xFFEEE8D5)
         isDark && isAmoled -> AmoledSurfaceCard
         isDark -> DarkSurfaceCard
         else -> LightSurfaceCard
     }
 
-    val onBackground = if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A)
-    val onSurface = if (isDark) Color(0xFFF8FAFC) else Color(0xFF1E293B)
+    val onBackground = when (selectedTheme) {
+        "Bento Grid" -> BentoText
+        "Cyberpunk" -> Color.White
+        "Nordic Ice" -> Color(0xFFECEFF4)
+        "Solarized Light" -> Color(0xFF586E75)
+        else -> if (isDark) Color(0xFFF1F5F9) else Color(0xFF0F172A)
+    }
+    
+    val onSurface = when (selectedTheme) {
+        "Bento Grid" -> BentoText
+        "Cyberpunk" -> Color.White
+        "Nordic Ice" -> Color(0xFFECEFF4)
+        "Solarized Light" -> Color(0xFF586E75)
+        else -> if (isDark) Color(0xFFF8FAFC) else Color(0xFF1E293B)
+    }
 
-    val colorScheme = if (isDark) {
+    val colorScheme = if (isDark && selectedTheme !in listOf("Bento Grid", "Cyberpunk", "Nordic Ice", "Solarized Light")) {
         darkColorScheme(
             primary = finalPrimary,
             secondary = if (isAmoled) Color(0xFF1E293B) else Color(0xFF334155),

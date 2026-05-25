@@ -82,7 +82,7 @@ class StopDumbRepository(private val db: StopDumbDatabase) {
         // Save default initial settings
         val initialSettings = GlobalWellnessSettings(
             id = 1,
-            currentTheme = "Mint",
+            currentTheme = "Bento Grid",
             isAmoledBlack = false,
             totalPickupsToday = 34,
             totalUnlocksToday = 29,

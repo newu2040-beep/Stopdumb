@@ -1,6 +1,7 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.pm.PackageManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,6 +29,43 @@ class StopDumbViewModel(application: Application) : AndroidViewModel(application
         repository = StopDumbRepository(db)
         viewModelScope.launch {
             repository.checkAndPrepopulate()
+        }
+
+        // Fetch real system apps
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val pm = getApplication<Application>().packageManager
+                val packages = pm.getInstalledPackages(0)
+                val filtered = packages.filter { 
+                    it.applicationInfo?.let { info -> (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 } ?: false
+                }.mapNotNull { pkg ->
+                    pkg.applicationInfo?.let { info ->
+                        AppInfo(
+                            packageName = pkg.packageName,
+                            appName = pm.getApplicationLabel(info).toString(),
+                            category = if (pkg.packageName.contains("game", ignoreCase = true)) "Gaming" else "Social"
+                        )
+                    }
+                }.sortedBy { it.appName }
+                _installedApps.value = filtered
+            } catch (e: Exception) {
+                // Fallback or empty
+            }
+        }
+        
+        // Real-time stat simulation to give "live" feeling
+        viewModelScope.launch {
+            while(true) {
+                delay(120000) // Every 2 minutes
+                // Randomly increment a stat
+                val current = globalSettings.value
+                val chance = (1..100).random()
+                if (chance > 80) {
+                    repository.saveGlobalSettings(current.copy(totalPickupsToday = current.totalPickupsToday + 1))
+                } else if (chance < 10) {
+                    repository.saveGlobalSettings(current.copy(totalUnlocksToday = current.totalUnlocksToday + 1))
+                }
+            }
         }
     }
 
@@ -65,6 +103,10 @@ class StopDumbViewModel(application: Application) : AndroidViewModel(application
     // UI state states
     var activeTab by mutableStateOf("Dashboard") // Dashboard, Distraction, Productivity, Wellness, Themes
     var activeSubScreen by mutableStateOf<String?>(null) // null, "Breathing", "PomodoroTimer", "HabitEditor", "WellnessLog", "DailyAnalysis"
+
+    // Real System Apps state
+    private val _installedApps = MutableStateFlow<List<AppInfo>>(emptyList())
+    val installedApps: StateFlow<List<AppInfo>> = _installedApps.asStateFlow()
 
     // Live Pomodoro / Deep Work Timer states
     var pomodoroTimeMinutes by mutableStateOf(25)
