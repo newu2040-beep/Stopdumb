@@ -1,0 +1,6 @@
+{
+  "name": "StopDumb",
+  "description": "An intelligent digital wellbeing and anti-distraction ecosystem to help reduce phone addiction, eliminate distractions, and regain focus.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
